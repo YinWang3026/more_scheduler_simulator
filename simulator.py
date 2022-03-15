@@ -2,6 +2,10 @@ from collections import deque
 from enum import Enum, auto
 import sys, getopt
 
+# Global variables
+process_id = 0
+event_id = 0
+
 class State(Enum):
     CREATED =  auto()
     READY = auto()
@@ -17,40 +21,41 @@ class Transition(Enum):
     TO_DONE = auto()
 
 class Process:
-    id = 0
-    def __init__(self, name, at, cp, tickets, cpus, state, stateTS) -> None:
-        self.id = id
-        id += 1
+    def __init__(self, name, arrivalTime, work, tickets, resource, state) -> None:
+        global process_id
+        self.id = process_id
+        process_id += 1
 
         self.name = name
-        self.arrivalTime = at
+        self.arrivalTime = arrivalTime
         self.finishTime = -1
+        self.waitTime = 0 # Time in ready state
 
-        self.cpus = cpus
-        self.cpuTime = cp
+        self.resource = resource
+        self.work = work # Execution time
         self.tickets = tickets
 
-        self.remainingCpuTime = cp
+        self.remainingWork = work
 
-        self.state = state # State
-        self.stateTS = stateTS # Time that process became this state
+        self.state = state # State enum
+        self.stateTS = arrivalTime # Time that process became this state
 
     def __repr__(self) -> str:
-        return "Name: %s, AT: %d, CPU: %d, Tickets: %d, FT: " \
-            % (self.name, self.arrivalTime, self.cpuTime, self.tickets, self.finishTime)
+        return "Name: %s, AT: %d, Work: %d, Tickets: %d, Resource: %d" \
+            % (self.name, self.arrivalTime, self.work, self.tickets, self.resource)
 
 class Event:
-    # Class variables
-    id = 0
     def __init__(self, ts, proc, trans) -> None:
-        self.evtID = id
-        id += 1
+        global event_id
+        self.eventID = event_id
+        event_id += 1
+
         self.timeStamp = ts
         self.process = proc
-        self.transition = trans # enum
+        self.transition = trans # Transition enum
     
     def __repr__(self) -> str:
-        return "%d:%d,%s" % (self.timeStamp, self.process.id, self.transition.name)
+        return "EventID: %d, TimeStamp: %d, Process:%s, Transition: %s" % (self.eventID, self.timeStamp, self.process.name, self.transition.name)
     
 
 class EventQueue:
@@ -80,7 +85,7 @@ class EventQueue:
     def __repr__(self) -> str:
         s = ""
         for i in range(0,len(self.queue)):
-            s += self.queue[i].__repr__() + " "
+            s += self.queue[i].__repr__() + "\n"
         return s
 
 class Scheduler:
@@ -173,17 +178,31 @@ def main(argv):
         print('Missing scheduler or used invalid name')
         sys.exit()
 
+    myProcessList = []
+    myEventQueue = EventQueue()
     with open(ifile, 'r') as f:
         print(f.readline().strip())
         for line in f.readlines():
             line = line.strip().split()
             print(line)
+            name = line[0]
+            arrivalTime = int(line[1])
+            work = int(line[2])
+            tickets = int(line[3])
+            resource = int(line[4])
+            p = Process(name, arrivalTime, work, tickets, resource, State.CREATED)
+            e = Event(arrivalTime, p, Transition.TO_READY)
+            myProcessList.append(p)
+            myEventQueue.putEvent(e)
     
-    # d = deque(["one, two, three"])
-    # for i in range(0, len(d)):
-    #     print(d[i])
+    for i in range(0, len(myProcessList)):
+        print(myProcessList[i])
+    print(myEventQueue)
 
-def simulate():
+    # Start simulation
+    simulate(myEventQueue, scheduler)
+
+def simulate(myEventQueue, scheduler) -> None:
     pass
 
 if __name__ == "__main__":
