@@ -1,4 +1,4 @@
-Job ArrivalTime Work Tickets CPUs
+JobName ArrivalTime Work Tickets CPUs
 A 5 192 95 1
 B 9 338 78 5
 C 10 159 31 8

@@ -99,6 +99,9 @@ class Scheduler:
             return None
         
         return self.queue.popleft()
+    
+    def getQuantum(self):
+        return self.quantum
         
 class FCFS(Scheduler): # First Come First Served
     def __init__(self) -> None:
@@ -181,10 +184,9 @@ def main(argv):
     myProcessList = []
     myEventQueue = EventQueue()
     with open(ifile, 'r') as f:
-        print(f.readline().strip())
+        print("Header: " + f.readline().strip())
         for line in f.readlines():
             line = line.strip().split()
-            print(line)
             name = line[0]
             arrivalTime = int(line[1])
             work = int(line[2])
@@ -203,7 +205,40 @@ def main(argv):
     simulate(myEventQueue, scheduler)
 
 def simulate(myEventQueue, scheduler) -> None:
-    pass
+    event = myEventQueue.getEvent()
+    runningProc = None
+    callScheduler = False
+
+    while (event != None):
+        proc = event.process
+        eventTrans = event.transition
+        currentTime = event.timeStamp
+        timeInPrevState = currentTime - proc.stateTS
+        event = None # Remove the pointer
+
+        # Process events
+        if eventTrans == Transition.TO_READY:
+            pass
+        elif eventTrans == Transition.TO_RUN:
+            pass
+        elif eventTrans == Transition.TO_BLOCK:
+            pass
+        elif eventTrans == Transition.TO_PREEMPT:
+            # No preemption in FCFS SRTF SRF LOTTERY
+            pass
+        elif eventTrans == Transition.TO_DONE:
+            pass
+        
+        # Get next process
+        if callScheduler:
+            if (myEventQueue.getNextEvtTime() == currentTime):
+                event = myEventQueue.getEvent()
+                continue
+
+            callScheduler = False
+
+        # Get next event
+        event = myEventQueue.getEvent()
 
 if __name__ == "__main__":
    main(sys.argv[1:])
