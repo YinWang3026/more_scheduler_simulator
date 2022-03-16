@@ -136,12 +136,17 @@ class SRTF(Scheduler): # Shortest Remaning Time First
     def __repr__(self) -> str:
         return "SRTF"
 
-class SRF: # Smallest Resource First
+class SRF(Scheduler): # Smallest Resource First
     def __init__(self) -> None:
         self.queue = deque()
 
     def addProcess(self, process) -> None:
-        pass
+        index = 0
+        while index < len(self.queue):
+            if process.resource < self.queue[index].resource:
+                break
+            index += 1
+        self.queue.insert(index, process)
 
     def __repr__(self) -> str:
         return "SRF"

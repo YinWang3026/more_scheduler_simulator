@@ -3,7 +3,7 @@
 - Implemented a Discrete Event Simulator to calculate the Job Completetion Time (JCT) for some randomly generated jobs
   - FCFS - First Come First Served
   - SRTF - Shortest Remaining Time First
-  - SRF - Shortest Resource First
+  - SRF - Smallest Resource First
   - Lottery - Random selection
 - To run the simulator `simulator.py -h -v -t -q -i <jobs.txt> -s <scheduler>`
   - Reads jobs from `jobs.txt`
