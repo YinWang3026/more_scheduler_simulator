@@ -1,5 +1,6 @@
 from collections import deque
 from enum import Enum, auto
+from random import randint
 import sys, getopt
 
 # Global variables
@@ -151,17 +152,39 @@ class SRF(Scheduler): # Smallest Resource First
     def __repr__(self) -> str:
         return "SRF"
 
-class Lottery: # Random
+class Lottery(Scheduler): # Random
     def __init__(self) -> None:
         self.queue = deque()
 
     def addProcess(self, process) -> None:
-        pass
+        self.queue.append(process)
 
     def getProcess(self) -> Process:
         # Overriding parent method
-        pass
+        if len(self.queue) == 0:
+            return None
 
+        totalTickets = 0
+        for i in range(0, len(self.queue)):
+            totalTickets += self.queue[i].tickets
+        winningTicket = randint(1, totalTickets) # Gotta have at least 1 ticket
+        winner = None
+        currTotal = 0
+        for i in range(0, len(self.queue)):
+            currTotal += self.queue[i].tickets
+            if currTotal >= winningTicket:
+                winner = self.queue[i]
+                break
+        
+        if winner == None:
+            print("No winner in lottery, something gone real bad")
+            sys.exit(1)
+        
+        if tFlag:
+            print("Winner: %s" % (winner.name))
+        self.queue.remove(winner)
+        return winner
+                
     def __repr__(self) -> str:
         return "Lottery"
 
