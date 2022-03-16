@@ -162,11 +162,17 @@ def main(argv):
         # getopt.getopt(args, options, [long_options])
         # ":" indicates that an argument is needed, otherwise just an option, like -h
     except getopt.GetoptError:
-        print('simulator.py -i <jobs.txt> -s <scheduler>')
+        print('simulator.py -h -v -t -q -i <jobs.txt> -s <scheduler>')
+        print('-v for general debugging info')
+        print('-q for printing scheduler queue')
+        print('-t for showing simulation traces')
         sys.exit(1)
     for opt, arg in opts:
         if opt in ("-h", "--help"):
-            print('simulator.py -i <jobs.txt> -s <scheduler>')
+            print('simulator.py -h -v -t -q -i <jobs.txt> -s <scheduler>')
+            print('-v for general debugging info')
+            print('-q for printing scheduler queue')
+            print('-t for showing simulation traces')
             sys.exit()
         elif opt in ("-i", "--ifile"):
             ifile = arg
@@ -249,7 +255,6 @@ def simulate(myEventQueue, myScheduler) -> None:
         timeInPrevState = currentTime - proc.stateTS
         event = None # Disconnect pointer to object
 
-
         # Process events
         if eventTrans == Transition.TO_READY:
             printStateIntro(currentTime, proc, timeInPrevState, State.READY.name)
@@ -288,7 +293,6 @@ def simulate(myEventQueue, myScheduler) -> None:
             # Call scheduler for a new proc to run
             callScheduler = True
             runningProc = None
-            
         
         # Get next process
         # If another event of same time, process the next event before calling scheduler
@@ -304,7 +308,6 @@ def simulate(myEventQueue, myScheduler) -> None:
                 if runningProc != None:
                     # There is a process to run, create a new event
                     myEventQueue.putEvent(Event(currentTime, runningProc, Transition.TO_RUN))
-
 
         # Get next event
         event = myEventQueue.getEvent()
