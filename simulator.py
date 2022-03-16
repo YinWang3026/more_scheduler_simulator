@@ -4,12 +4,14 @@ import sys, getopt
 
 # Global variables
 process_id = 0
-event_id = 0
+vFlag = False # General debug info
+tFlag = False # Prints simulation trace
+qFlag = False # Prints scheduler q
 
 class State(Enum):
     CREATED =  auto()
     READY = auto()
-    RUNNING = auto()
+    RUN = auto()
     BLOCKED = auto()
     DONE = auto()
 
@@ -28,36 +30,36 @@ class Process:
 
         self.name = name
         self.arrivalTime = arrivalTime
-        self.finishTime = -1
+
+        # Calculate these values
+        self.execStartTime = 0
+        self.finishTime = 0
         self.waitTime = 0 # Time in ready state
+        self.jct = 0.00
 
         self.resource = resource
         self.work = work # Execution time
         self.tickets = tickets
 
-        self.remainingWork = work
-
         self.state = state # State enum
         self.stateTS = arrivalTime # Time that process became this state
-
+    
+    def setJct(self) -> None:
+        self.jct = (float(self.waitTime) + float(self.work)) / float(self.work)
+  
     def __repr__(self) -> str:
-        return "Name: %s, AT: %d, Work: %d, Tickets: %d, Resource: %d" \
-            % (self.name, self.arrivalTime, self.work, self.tickets, self.resource)
+        return "Name: %s, AT: %d, Work: %d, Tickets: %d, Resource: %d, ExecStartTime: %d, FinishTime: %d, WaitTime: %d, JCT: %.2f" \
+            % (self.name, self.arrivalTime, self.work, self.tickets, self.resource, self.execStartTime, self.finishTime, self.waitTime, self.jct)
 
 class Event:
     def __init__(self, ts, proc, trans) -> None:
-        global event_id
-        self.eventID = event_id
-        event_id += 1
-
         self.timeStamp = ts
         self.process = proc
         self.transition = trans # Transition enum
     
     def __repr__(self) -> str:
-        return "EventID: %d, TimeStamp: %d, Process:%s, Transition: %s" % (self.eventID, self.timeStamp, self.process.name, self.transition.name)
+        return "TimeStamp: %d, Process:%s, Transition: %s" % (self.timeStamp, self.process.name, self.transition.name)
     
-
 class EventQueue:
     def __init__(self) -> None:
         self.queue = deque()
@@ -82,11 +84,10 @@ class EventQueue:
         
         return self.queue[0].timeStamp
     
-    def __repr__(self) -> str:
-        s = ""
+    def printQueue(self) -> None:
         for i in range(0,len(self.queue)):
-            s += self.queue[i].__repr__() + "\n"
-        return s
+            print(self.queue[i])
+
 
 class Scheduler:
     def __init__(self, quantum=10000, prio=4) -> None:
@@ -97,11 +98,17 @@ class Scheduler:
     def getProcess(self) -> Process:
         if len(self.queue) == 0:
             return None
-        
         return self.queue.popleft()
     
-    def getQuantum(self):
+    def getQuantum(self) -> int:
         return self.quantum
+    
+    def printQueue(self) -> None:
+        print("SchedQ[%d]:" % (len(self.queue)))
+        s = ""
+        for i in range(0,len(self.queue)):
+            s += self.queue[i].name + " "
+        print(s)
         
 class FCFS(Scheduler): # First Come First Served
     def __init__(self) -> None:
@@ -151,7 +158,7 @@ def main(argv):
     ifile = ''
     scheduler = None
     try:
-        opts, args = getopt.getopt(argv,"hi:s:",["help, ifile=, sched="])
+        opts, args = getopt.getopt(argv,"hvtqi:s:",["help, ifile=, sched="])
         # getopt.getopt(args, options, [long_options])
         # ":" indicates that an argument is needed, otherwise just an option, like -h
     except getopt.GetoptError:
@@ -172,6 +179,15 @@ def main(argv):
                 scheduler = SRF()
             elif arg == "Lottery":
                 scheduler = Lottery()
+        elif opt in ("-v"):
+            global vFlag
+            vFlag = True
+        elif opt in ("-t"):
+            global tFlag
+            tFlag = True
+        elif opt in ("-q"):
+            global qFlag
+            qFlag = True
     
     if ifile == "":
         print('Missing input file, exiting')
@@ -184,7 +200,9 @@ def main(argv):
     myProcessList = []
     myEventQueue = EventQueue()
     with open(ifile, 'r') as f:
-        print("Header: " + f.readline().strip())
+        header = f.readline().strip()
+        if vFlag:
+            print("Header: " + header)
         for line in f.readlines():
             line = line.strip().split()
             name = line[0]
@@ -197,14 +215,29 @@ def main(argv):
             myProcessList.append(p)
             myEventQueue.putEvent(e)
     
-    for i in range(0, len(myProcessList)):
-        print(myProcessList[i])
-    print(myEventQueue)
+    if vFlag:
+        print("Inital loadout")
+        for i in range(0, len(myProcessList)):
+            print(myProcessList[i])
+        myEventQueue.printQueue()
 
     # Start simulation
     simulate(myEventQueue, scheduler)
 
-def simulate(myEventQueue, scheduler) -> None:
+    # Calculate JCT
+    print("Results")
+    totalJct = 0
+    for i in range(0, len(myProcessList)):
+        totalJct += myProcessList[i].jct
+        print(myProcessList[i])
+    print("Scheduler: %s, Average JCT: %.2f" % (scheduler, float(totalJct)/float(len(myProcessList))))
+    
+def simulate(myEventQueue, myScheduler) -> None:
+    def printStateIntro(currentTime, proc, timeInPrevState, newState):
+        if tFlag:
+            print("currentTime: %d, procName: %s, timeInPrevState: %d, from: %s to: %s" \
+                % (currentTime, proc.name, timeInPrevState, proc.state, newState))
+
     event = myEventQueue.getEvent()
     runningProc = None
     callScheduler = False
@@ -214,28 +247,64 @@ def simulate(myEventQueue, scheduler) -> None:
         eventTrans = event.transition
         currentTime = event.timeStamp
         timeInPrevState = currentTime - proc.stateTS
-        event = None # Remove the pointer
+        event = None # Disconnect pointer to object
+
 
         # Process events
         if eventTrans == Transition.TO_READY:
-            pass
+            printStateIntro(currentTime, proc, timeInPrevState, State.READY.name)
+            # Update state info
+            proc.state = State.READY
+            proc.stateTS = currentTime
+            # Add to scheduler
+            myScheduler.addProcess(proc)
+            callScheduler = True
+
         elif eventTrans == Transition.TO_RUN:
-            pass
+            printStateIntro(currentTime, proc, timeInPrevState, State.RUN.name)
+            # Update state info
+            proc.state = State.RUN
+            proc.stateTS = currentTime
+            proc.execStartTime = currentTime
+            proc.waitTime += timeInPrevState
+            # Create new event to fire off when proc is done, put the proc to DONE
+            myEventQueue.putEvent(Event(currentTime+proc.work, proc, Transition.TO_DONE))
+
         elif eventTrans == Transition.TO_BLOCK:
+            # No blocking in this simulation :)
             pass
+
         elif eventTrans == Transition.TO_PREEMPT:
             # No preemption in FCFS SRTF SRF LOTTERY
             pass
+
         elif eventTrans == Transition.TO_DONE:
-            pass
+            printStateIntro(currentTime, proc, timeInPrevState, State.DONE.name)
+            # Update proc info
+            proc.state = State.DONE
+            proc.stateTS = currentTime
+            proc.finishTime = currentTime
+            proc.setJct() # Calculate the jct
+            # Call scheduler for a new proc to run
+            callScheduler = True
+            runningProc = None
+            
         
         # Get next process
-        if callScheduler:
-            if (myEventQueue.getNextEvtTime() == currentTime):
-                event = myEventQueue.getEvent()
-                continue
-
+        # If another event of same time, process the next event before calling scheduler
+        if callScheduler and myEventQueue.getNextEvtTime() != currentTime:
+            # Reset the flag
             callScheduler = False
+            # No proc running
+            if runningProc == None:
+                if qFlag:
+                    myScheduler.printQueue()
+
+                runningProc = myScheduler.getProcess()
+                if runningProc != None:
+                    # There is a process to run, create a new event
+                    myEventQueue.putEvent(Event(currentTime, runningProc, Transition.TO_RUN))
+
 
         # Get next event
         event = myEventQueue.getEvent()
