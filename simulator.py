@@ -91,6 +91,7 @@ class EventQueue:
 
 class Scheduler:
     def __init__(self, quantum=10000, prio=4) -> None:
+        # Quantum, prio are not used for FCFS, SRTF, SRF, Lottery, just placeholders for future
         self.quantum = quantum
         self.maxprio = prio
         self.queue = deque()
@@ -120,12 +121,17 @@ class FCFS(Scheduler): # First Come First Served
     def __repr__(self) -> str:
         return "FCFS"
     
-class SRTF: # Shortest Remaning Time First
+class SRTF(Scheduler): # Shortest Remaning Time First
     def __init__(self) -> None:
         super().__init__()
 
     def addProcess(self, process) -> None:
-        pass
+        index = 0
+        while index < len(self.queue):
+            if process.work < self.queue[index].work:
+                break
+            index += 1
+        self.queue.insert(index, process)
 
     def __repr__(self) -> str:
         return "SRTF"
